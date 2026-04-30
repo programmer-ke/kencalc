@@ -1,9 +1,10 @@
-* kencalc
+# kencalc
 
 A calculator language
 
-** Grammar
+## Grammar
 
+```
 list:
 	expr \n
 	list expr \n
@@ -14,3 +15,4 @@ expr:
 	expr * expr
 	expr / expr
 	( expr )
+```
