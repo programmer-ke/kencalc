@@ -11,14 +11,17 @@ extern char *progname;
 extern int lineno;
 %}
 %token NUMBER
-%left  '+' '-'  //	left associative, same precedence
-%left  '*' '/' //	left associative, higher precedence
+			// left associative order of increasing precedence
+%left  '+' '-'
+%left  '*' '/'
+%left UNARYMINUS
 %%
 list://		nothing
 	|	list '\n'
 	|	list expr '\n' { printf("\t%.8g\n", $2); }
 	;
 expr:		NUMBER { $$ = $1; }
+	|	'-' expr %prec UNARYMINUS { $$ = -$2; }
 	|	expr '+' expr { $$ = $1 + $3; }
 	|	expr '-' expr { $$ = $1 - $3; }
 	|	expr '*' expr { $$ = $1 * $3; }
@@ -32,7 +35,7 @@ int lineno = 1;
 
 int main(int argc, char *argv[]) {
     progname = argv[0];
-    yyparse();
+    return yyparse();
 }
 
 /* yylex: processes a token
@@ -40,7 +43,7 @@ int main(int argc, char *argv[]) {
  * Returns the token type and if a number, sets the value in yylval
  * Called by yyparse
  */
-int yylex() {
+int yylex(void) {
     int c;
     while ((c=getchar()) == ' ' || c == '\t')
 	;
