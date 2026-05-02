@@ -6,13 +6,12 @@ A calculator language
 
 ```
 list:
-	expr \n
-	list expr \n
-expr:
-	NUMBER
-	expr + expr
-	expr - expr
-	expr * expr
-	expr / expr
-	( expr )
+	  expr \n
+	  list expr \n
+expr: NUMBER
+	  expr + expr
+	  expr - expr
+	  expr * expr
+	  expr / expr
+	  ( expr )
 ```
