@@ -2,16 +2,9 @@
 
 A calculator language
 
-## Grammar
+## Features
 
-```
-list: (empty)
-	  list \n
-	  list expr \n
-expr: NUMBER
-	  expr + expr
-	  expr - expr
-	  expr * expr
-	  expr / expr
-	  ( expr )
-```
+- Basic arithmetic
+- Variables
+
+
