@@ -1,16 +1,17 @@
 %{
-double mem[26];         // memory for variables 'a' ... 'z'
 
 #include <stdio.h>
 #include <ctype.h>
 #include <signal.h>
 #include <setjmp.h>
+
 jmp_buf begin;
+double mem[26];         // memory for variables 'a' ... 'z'
 
 int yylex(void);
 void yyerror(char *s);
 void warning(char *s, char *t);
-void fpecatch();
+void fpecatch(int i);
 void execerror(char *s, char *t);
 
 extern char *progname;
@@ -20,9 +21,9 @@ extern int lineno;
     double val;         // actual value
     int index;          // index into mem[]
 }
-%token	<val>		NUMBER
-%token	<index>		VAR
-%type	<val>		expr
+%token	<val>		NUMBER   // when NUMBER is returned from yylex, its value is in val
+%token	<index>		VAR      // when VAR is returned from yylex, its value is in index
+%type	<val>		expr     // expression is the val member of the union
 
 %right '='              // right associative
 			// left associative order of increasing precedence
@@ -34,7 +35,7 @@ extern int lineno;
 list://		nothing
 	|	list '\n'
 	|	list expr '\n' { printf("\t%.8g\n", $2); }
-	|	list error '\n' { yyerrok; }
+	|	list error '\n' { yyerrok; } // If a syntax error is encountered, skip to end of line and reset error status
 	;
 expr:		NUMBER                    { $$ = $1; }
 	|	VAR                       { $$ = mem[$1]; }
@@ -58,8 +59,8 @@ int lineno = 1;
 int main(int argc, char *argv[]) {
 
     progname = argv[0];
-    setjmp(begin);
-    signal(SIGFPE, fpecatch);
+    setjmp(begin);  // store current stack information
+    signal(SIGFPE, fpecatch);  // set handler for floating point errors
     return yyparse();
 }
 
@@ -110,6 +111,6 @@ void execerror(char *s, char *t) {
 }
 
 // Catch floating point exceptions
-void fpecatch() {
+void fpecatch(int i) {
     execerror("floating point exception", (char *) 0);
 }
