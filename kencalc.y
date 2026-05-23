@@ -4,9 +4,9 @@
 #include <ctype.h>
 #include <signal.h>
 #include <setjmp.h>
+#include "kencalc.h"
 
 jmp_buf begin;
-double mem[26];         // memory for variables 'a' ... 'z'
 
 int yylex(void);
 void yyerror(char *s);
@@ -14,34 +14,39 @@ void warning(char *s, char *t);
 void fpecatch(int i);
 void execerror(char *s, char *t);
 
+extern double Pow();
 extern char *progname;
 extern int lineno;
 %}
 %union {                // stack type
     double val;         // actual value
-    int index;          // index into mem[]
+    Symbol *sym;        // symbol table pointer
 }
-%token	<val>		NUMBER   // when NUMBER is returned from yylex, its value is in val
-%token	<index>		VAR      // when VAR is returned from yylex, its value is in index
-%type	<val>		expr     // expression is the val member of the union
+%token	<val>		NUMBER   // when returned from yylex, its value is in val
+%token	<sym>		VAR BLTIN UNDEF  // when returned from yylex, its value is in sym
+%type	<val>		expr asgn    // expression/assignment is the val member of the union
 
 %right '='              // right associative
-			// left associative order of increasing precedence
-%left  '+' '-'
+			
+%left  '+' '-'          // left associative order of increasing precedence
 %left  '*' '/'
 %left UNARYMINUS
 %left UNARYPLUS
+%right '^' //		exponentiation
 %%
 list://		nothing
 	|	list '\n'
+	|	list asgn '\n'
 	|	list expr '\n' { printf("\t%.8g\n", $2); }
 	|	list error '\n' { yyerrok; } // If a syntax error is encountered, skip to end of line and reset error status
 	;
-expr:		NUMBER                    { $$ = $1; }
-	|	VAR                       { $$ = mem[$1]; }
-	|	VAR '=' expr              { $$ = mem[$1] = $3; }
-	|	'-' expr %prec UNARYMINUS { $$ = -$2; }
-	|	'+' expr %prec UNARYPLUS  { $$ = +$2; }
+asgn:		 VAR '=' expr { $$=$1->u.val=$3; $1->type = VAR; }
+	;
+expr:		NUMBER
+	|	VAR  { if ($1->type == UNDEF) execerror("undefined variable", $1->name);
+                       $$ = $1->u.val; }
+	|	asgn
+	|	BLTIN '(' expr ')' { $$ = (*($1->u.ptr))($3); }
 	|	expr '+' expr { $$ = $1 + $3; }
 	|	expr '-' expr { $$ = $1 - $3; }
 	|	expr '*' expr { $$ = $1 * $3; }
@@ -49,7 +54,11 @@ expr:		NUMBER                    { $$ = $1; }
                    if ($3 == 0.0)
 	              execerror("division by zero", "");
                    $$ = $1 / $3; }
+	|	expr '^' expr { $$ = Pow($1, $3);  }
 	|	'(' expr ')'  { $$ = $2; }
+	|	'-' expr %prec UNARYMINUS { $$ = -$2; }
+	|	'+' expr %prec UNARYPLUS  { $$ = +$2; }
+
 	;
 %%
 		// end of grammar
@@ -59,6 +68,7 @@ int lineno = 1;
 int main(int argc, char *argv[]) {
 
     progname = argv[0];
+    init();
     setjmp(begin);  // store current stack information
     signal(SIGFPE, fpecatch);  // set handler for floating point errors
     return yyparse();
@@ -80,9 +90,18 @@ int yylex(void) {
 	scanf("%lf", &yylval.val);
 	return NUMBER;
     }
-    if (islower(c)) {
-	yylval.index = c - 'a';   // ascii index
-	return VAR;
+    if (isalpha(c)) {
+	Symbol *s;
+	char sbuf[100], *p = sbuf;
+	do {
+	    *p++ = c;
+	} while ((c = getchar()) != EOF && isalnum(c));
+	ungetc(c, stdin);
+	*p = '\0';
+	if ((s=lookup(sbuf)) == 0)
+	    s = install(sbuf, UNDEF, 0.0);
+	yylval.sym = s;
+	return s->type == UNDEF ? VAR : s->type;
     }
     if (c == '\n')
 	lineno++;
