@@ -92,8 +92,10 @@ int yylex(void) {
     }
     if (isalpha(c)) {
 	Symbol *s;
-	char sbuf[100], *p = sbuf;
+	char sbuf[100], *p = sbuf, *end = sbuf + sizeof(sbuf) - 1;
 	do {
+	    if (p >= end)
+		execerror("identifier too long", (char *) 0);
 	    *p++ = c;
 	} while ((c = getchar()) != EOF && isalnum(c));
 	ungetc(c, stdin);
