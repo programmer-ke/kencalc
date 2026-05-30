@@ -1,3 +1,4 @@
+.PHONY: pr clean
 YFLAGS = -d 	# create y.tab.h
 OBJS = kencalc.o init.o math.o symbol.o
 
