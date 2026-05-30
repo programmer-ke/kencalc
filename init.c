@@ -19,8 +19,8 @@ static struct {
 
 // Builtins
 static struct {
-  char *name;
-  double (*func)();
+  const char *name;
+  double (*func)(double);
 } builtins[] = {
   "sin", sin,
   "cos", cos,
@@ -35,7 +35,7 @@ static struct {
   0, 0
 };
 
-void init() {
+void init(void) {
   int i;
   Symbol *s;
 

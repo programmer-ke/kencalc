@@ -14,7 +14,7 @@ void warning(char *s, char *t);
 void fpecatch(int i);
 void execerror(char *s, char *t);
 
-extern double Pow();
+extern double Pow(double, double);
 extern char *progname;
 extern int lineno;
 %}

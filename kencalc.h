@@ -11,6 +11,6 @@ typedef struct Symbol {
   struct Symbol *next;  // Link to another symbol in the list
 } Symbol;
 
-Symbol *install(char *s, int t, double d), *lookup(char *s);
+Symbol *install(const char *s, int t, double d), *lookup(char *s);
 void init(void);
 void execerror(char *s, char *t);

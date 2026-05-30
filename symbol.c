@@ -26,7 +26,7 @@ Symbol *lookup(char *s) {
  * @param d The symbol value
  * @return A pointer to the inserted symbol
  */
-Symbol *install(char *s, int t, double d) {
+Symbol *install(const char *s, int t, double d) {
   Symbol *sp;
   char *emalloc();
 
