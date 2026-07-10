@@ -1,16 +1,20 @@
-.PHONY: pr clean
+.PHONY: clean
 YFLAGS = -d 	# create y.tab.h
-OBJS = kencalc.o init.o math.o symbol.o
+OBJS = kencalc.o init.o math.o symbol.o code.o
 
 kencalc: $(OBJS)
 	cc $(OBJS) -lm -o kencalc
 
-kencalc.o: kencalc.h
+kencalc.o code.o init.o symbol.o: kencalc.h
 
-init.o symbol.o: kencalc.h y.tab.h
+code.o init.o symbol.o: x.tab.h
 
-pr:
-	@pr kencalc.y kencalc.h init.c math.c symbol.c Makefile
+x.tab.h: y.tab.h
+	-cmp -s x.tab.h y.tab.h || cp y.tab.h x.tab.h
+
+pr: kencalc.y kencalc.h code.c init.c math.c symbol.c
+	@pr $?
+	@touch pr
 
 clean:
-	rm -rf $(OBJS) y.tab.[ch]
+	rm -rf $(OBJS) [xy].tab.[ch]

@@ -8,23 +8,22 @@
 
 jmp_buf begin;
 
+#define code2(c1, c2) code(c1); code(c2)
+#define code3(c1, c2, c3) code(c1); code(c2); code(c3)
+
 int yylex(void);
 void yyerror(char *s);
 void warning(char *s, char *t);
 void fpecatch(int i);
 void execerror(char *s, char *t);
 
-extern double Pow(double, double);
-extern char *progname;
-extern int lineno;
 %}
-%union {                // stack type
-    double val;         // actual value
-    Symbol *sym;        // symbol table pointer
+%union {                // stack type (yylval)
+    Inst *inst;         // machine instruction
+    Symbol *sym;        // symbol table pointer (yylval.sym)
 }
-%token	<val>		NUMBER   // when returned from yylex, its value is in val
-%token	<sym>		VAR BLTIN UNDEF  // when returned from yylex, its value is in sym
-%type	<val>		expr asgn    // expression/assignment is the val member of the union
+%token	<sym>		VAR BLTIN UNDEF NUMBER  // when returned from yylex, its value is in sym
+%type	<inst>		expr asgn    // expression/assignment is the inst member of the union
 
 %right '='              // right associative
 			
@@ -36,28 +35,24 @@ extern int lineno;
 %%
 list://		nothing
 	|	list '\n'
-	|	list asgn '\n'
-	|	list expr '\n' { printf("\t%.8g\n", $2); }
+	|	list asgn '\n' { code2(popop, STOP); return 1; }
+	|	list expr '\n' { code2(print, STOP); return 1; }
 	|	list error '\n' { yyerrok; } // If a syntax error is encountered, skip to end of line and reset error status
 	;
-asgn:		 VAR '=' expr { $$=$1->u.val=$3; $1->type = VAR; }
+asgn:		 VAR '=' expr { code3(varpush, (Inst)$1, assign); }
 	;
-expr:		NUMBER
-	|	VAR  { if ($1->type == UNDEF) execerror("undefined variable", $1->name);
-                       $$ = $1->u.val; }
+expr:		NUMBER  { code2(constpush, (Inst)$1); }
+	|	VAR  { code3(varpush, (Inst)$1, eval); }
 	|	asgn
-	|	BLTIN '(' expr ')' { $$ = (*($1->u.ptr))($3); }
-	|	expr '+' expr { $$ = $1 + $3; }
-	|	expr '-' expr { $$ = $1 - $3; }
-	|	expr '*' expr { $$ = $1 * $3; }
-	|	expr '/' expr {
-                   if ($3 == 0.0)
-	              execerror("division by zero", "");
-                   $$ = $1 / $3; }
-	|	expr '^' expr { $$ = Pow($1, $3);  }
+	|	BLTIN '(' expr ')' { code2(bltin, (Inst)$1->u.ptr); }
+	|	expr '+' expr { code(add); }
+	|	expr '-' expr { code(sub); }
+	|	expr '*' expr { code(mul); }
+	|	expr '/' expr { code(divop); }
+	|	expr '^' expr { code(power);  }
 	|	'(' expr ')'  { $$ = $2; }
-	|	'-' expr %prec UNARYMINUS { $$ = -$2; }
-	|	'+' expr %prec UNARYPLUS  { $$ = +$2; }
+	|	'-'expr %prec UNARYMINUS { code(negate); }
+	|	'+' expr %prec UNARYPLUS  { }
 
 	;
 %%
@@ -71,7 +66,10 @@ int main(int argc, char *argv[]) {
     init();
     setjmp(begin);  // store current stack information
     signal(SIGFPE, fpecatch);  // set handler for floating point errors
-    return yyparse();
+    for (initcode(); yyparse(); initcode())
+	// loop and execute generated programs as long as yyparse returns 1;
+	execute(prog);
+    return 0;
 }
 
 /* yylex: processes a token
@@ -86,8 +84,10 @@ int yylex(void) {
     if (c == EOF)
 	return 0;
     if (c == '.' || isdigit(c)) {  // number
+	double d;
 	ungetc(c, stdin);
-	scanf("%lf", &yylval.val);
+	scanf("%lf", &d);
+	yylval.sym = install("", NUMBER, d);
 	return NUMBER;
     }
     if (isalpha(c)) {

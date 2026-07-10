@@ -3,3 +3,5 @@ kencalc
 *.o
 y.output
 y.tab.h
+ch8.txt
+x.tab.h
